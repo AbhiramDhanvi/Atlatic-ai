@@ -45,7 +45,7 @@ pip install -r requirements-dev.txt
 cp .env.example .env
 ```
 
-1. Create a Supabase Free project. In its SQL editor apply `supabase/migrations/001_atlatic.sql` then `002_explicit_privileges.sql` in order. Both must succeed before exposing the application.
+1. Create a Supabase Free project. In its SQL editor apply `supabase/migrations/001_atlatic.sql` then `002_explicit_privileges.sql` and `003_admin_onboarding.sql` in order. All must succeed before exposing the application.
 2. Copy the project's URL and publishable key into `.env`. Never use a service-role/secret key in this app.
 3. Add `GEMINI_API_KEY` privately. Select a chat and embedding model with free quota in your account; verify current model availability. The defaults are configuration examples, not a guarantee that a particular model stays available forever.
 4. Keep `EMBED_DIM=768`, matching the SQL column. Switching embedding models requires a new index or clearing/re-ingesting your own documents; do not mix embedding spaces.
@@ -70,6 +70,8 @@ select id from auth.users
 where email = 'owner@example.com' and email_confirmed_at is not null
 on conflict do nothing;
 ```
+
+Alternatively, before registration an operator can add a lower-case email to `atlatic_private.admin_invites`. Migration 003 promotes only the matching account after Supabase confirms that email; normal users cannot write invitations.
 
 Administrators can review approval requests but cannot browse other users' documents or conversations. Admin membership and quota tables intentionally deny direct user access. SECURITY DEFINER functions for quota and approval decisions are narrow, have fixed search paths, reject anonymous callers, and explicitly verify privileges; this intentional authenticated EXECUTE surface can appear in Supabase's advisory report.
 
