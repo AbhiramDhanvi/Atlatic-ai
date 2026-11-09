@@ -1,6 +1,6 @@
 # Verification record
 
-- Local application tests: 28 passed; 8 browser-auth callback parser checks passed.
+- Local application tests: 32 passed; 8 browser-auth callback parser checks passed.
 - Offline guardrail/workflow evaluation: 42 checks passed; controlled adapters, not live inference scores.
 - Live Supabase schema: nine application tables with RLS, eleven table/storage policies, private document bucket.
 - Live transactional database regression: eleven assertions passed, covering cross-user documents/messages/conversations/storage isolation, forged ownership rejection, approval privilege checks, anonymous function privileges, own-vector retrieval and daily quota enforcement. All fixtures rolled back.
@@ -12,3 +12,5 @@
 The Supabase advisor identified inherited anonymous EXECUTE privileges during initial verification. Migration 002 explicitly revokes them. Its authenticated SECURITY DEFINER advisory surface is intentional and documented in SECURITY.md.
 
 Authentication redirect fix: production Site URL updated from localhost to the deployed HTTPS origin. Signup now sends a fixed confirmation callback, the browser handles and removes confirmation fragments, signup returns to sign-in mode, and known auth errors use safe actionable messages.
+
+Authenticated browser verification: owner sign-in succeeded; the indexed fictional handbook returned cited answers for annual leave (20 days), carry-forward follow-up (5 days), and core hours (10 AM–3 PM). One intervening provider failure was observed; bounded retries now cover transient network/5xx failures, with no retry on quota or permanent errors. This is a smoke test, not a full live quality benchmark.

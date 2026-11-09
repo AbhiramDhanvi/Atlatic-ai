@@ -126,3 +126,22 @@ def test_auth_errors_are_actionable_without_exposing_upstream_details(monkeypatc
         with pytest.raises(HTTPException) as e:request('POST','/auth/v1/token?grant_type=password')
     assert e.value.status_code==status and message in e.value.detail
     assert 'do-not-expose' not in e.value.detail
+
+def test_transient_ai_failure_is_retried_without_logging_secret(monkeypatch,caplog):
+    import httpx
+    from app.models import invoke
+    from app.config import settings
+    monkeypatch.setattr(settings(),'gemini_api_key','fictional-private-key')
+    with patch('app.models.httpx.post',side_effect=[httpx.Response(503,json={'error':{'message':'fictional-private-key'}}),httpx.Response(200,json={'ok':True})]) as post,patch('app.models.time.sleep'):
+        assert invoke('test-model','generateContent',{'contents':[]})=={'ok':True}
+    assert post.call_count==2 and 'fictional-private-key' not in caplog.text
+
+@pytest.mark.parametrize('status',[400,404,429])
+def test_permanent_or_quota_ai_errors_are_not_retried(monkeypatch,status):
+    import httpx
+    from app.models import invoke
+    from app.config import settings
+    monkeypatch.setattr(settings(),'gemini_api_key','fictional-private-key')
+    with patch('app.models.httpx.post',return_value=httpx.Response(status,json={})) as post,patch('app.models.time.sleep'):
+        with pytest.raises(HTTPException): invoke('test-model','generateContent',{})
+    assert post.call_count==1

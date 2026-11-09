@@ -1,5 +1,7 @@
 """Gemini REST adapter; keys are sent in headers, never URLs or logs."""
 import math
+import time
+import logging
 import httpx
 from fastapi import HTTPException
 from app.config import settings
@@ -10,15 +12,27 @@ def invoke(model, operation, payload):
         raise HTTPException(503, 'AI is not configured. Add GEMINI_API_KEY to the server environment.')
     if '/' in model or ':' in model:
         raise HTTPException(503, 'Invalid model configuration.')
-    try:
-        r = httpx.post(
-            f'https://generativelanguage.googleapis.com/v1beta/models/{model}:{operation}',
-            headers={'x-goog-api-key': s.gemini_api_key}, json=payload, timeout=90)
-    except httpx.HTTPError as exc:
-        raise HTTPException(503, 'AI provider is temporarily unavailable.') from exc
+    for attempt in range(3):
+        try:
+            r = httpx.post(
+                f'https://generativelanguage.googleapis.com/v1beta/models/{model}:{operation}',
+                headers={'x-goog-api-key': s.gemini_api_key}, json=payload, timeout=s.gemini_request_timeout)
+        except httpx.HTTPError as exc:
+            if attempt < 2:
+                time.sleep(attempt + 1)
+                continue
+            raise HTTPException(503, 'AI provider is temporarily unavailable. Please try again shortly.') from exc
+        if r.status_code in (500, 502, 503, 504) and attempt < 2:
+            time.sleep(attempt + 1)
+            continue
+        break
     if r.status_code == 429:
         raise HTTPException(429, 'AI quota reached. Wait before trying again.')
     if r.is_error:
+        # Log only status and operation, never the upstream body, payload or credentials.
+        logging.getLogger('atlatic.ai').warning('AI request failed: operation=%s http_status=%s', operation, r.status_code)
+        if r.status_code >= 500:
+            raise HTTPException(503, 'AI provider is temporarily unavailable. Please try again shortly.')
         raise HTTPException(502, 'AI provider rejected the request. Check model access and configuration.')
     return r.json()
 

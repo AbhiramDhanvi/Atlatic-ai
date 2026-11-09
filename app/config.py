@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     supabase_url: str = ''
     supabase_publishable_key: str = ''
     gemini_api_key: str = ''
+    gemini_request_timeout: int = 30
     gemini_chat_model: str = 'gemini-3.5-flash'
     gemini_embed_model: str = 'gemini-embedding-001'
     embed_dim: int = 768

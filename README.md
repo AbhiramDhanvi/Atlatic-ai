@@ -104,7 +104,7 @@ Render Free can sleep and has no always-on guarantee. Supabase can pause inactiv
 - Quotas reserve attempted runs, including failed provider calls; they do not refund failures automatically.
 - Ingestion is synchronous and bounded. It embeds before writing and commits relational data atomically. Failed commits attempt object cleanup. Long documents must be split; durable background jobs are a future production extension.
 - Deletion removes indexed data first. If storage cleanup fails, the UI reports it; an operator can remove that owner-scoped orphan object in Supabase.
-- A free quota exhaustion returns 429 and is not retried aggressively. The backend surfaces setup-needed errors, rather than returning a pretend AI answer.
+- A free quota exhaustion returns 429 and is not retried. Transient network and 5xx provider errors get at most three attempts with bounded backoff; `GEMINI_REQUEST_TIMEOUT` defaults to 30 seconds per attempt. The backend surfaces setup-needed errors, rather than returning a pretend AI answer.
 - Rate limiting of authentication attempts is per-process; Supabase also applies provider-side Auth limits. A production deployment should add a durable edge rate limiter.
 
 ## Tests and evaluations
