@@ -55,7 +55,7 @@ def ready():
 def config():
     s=settings()
     return {'configured':bool(s.supabase_url and s.supabase_publishable_key),
-            'ai_configured':bool(s.gemini_api_key), 'name':'Atlatic AI'}
+            'ai_configured':bool(s.gemini_api_key), 'name':'Atlatic AI', 'version':s.app_version}
 
 class Credentials(BaseModel):
     email: str = Field(min_length=5,max_length=254,pattern=r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
@@ -176,7 +176,8 @@ def ask(body:Ask,p:Principal=Depends(principal)):
     rpc(p,'save_turn',{'cid':str(body.conversation_id),'question':body.question,'response':result['answer'],
         'response_sources':result.get('sources',[]),'response_status':result['status'],'elapsed_ms':elapsed})
     audit(p,'chat_completed',{'status':result['status'],'latency_ms':elapsed})
-    return {k:result[k] for k in ('answer','sources','status')} | {'latency_ms':elapsed}
+    return {k:result[k] for k in ('answer','sources','status')} | {
+        'latency_ms':elapsed, 'retrieval_mode':result.get('retrieval_mode','vector')}
 
 class Feedback(BaseModel):
     rating:int=Field(ge=-1,le=1)

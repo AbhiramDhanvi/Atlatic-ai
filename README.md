@@ -45,7 +45,7 @@ pip install -r requirements-dev.txt
 cp .env.example .env
 ```
 
-1. Create a Supabase Free project. In its SQL editor apply `supabase/migrations/001_atlatic.sql` then `002_explicit_privileges.sql` and `003_admin_onboarding.sql` in order. All must succeed before exposing the application.
+1. Create a Supabase Free project. In its SQL editor apply `supabase/migrations/001_atlatic.sql` then `002_explicit_privileges.sql` then `003_admin_onboarding.sql` and `004_keyword_fallback.sql` in order. All must succeed before exposing the application.
 2. Copy the project's URL and publishable key into `.env`. Never use a service-role/secret key in this app.
 3. Add `GEMINI_API_KEY` privately. Select a chat and embedding model with free quota in your account; verify current model availability. The defaults are configuration examples, not a guarantee that a particular model stays available forever.
 4. Keep `EMBED_DIM=768`, matching the SQL column. Switching embedding models requires a new index or clearing/re-ingesting your own documents; do not mix embedding spaces.
@@ -104,7 +104,7 @@ Render Free can sleep and has no always-on guarantee. Supabase can pause inactiv
 - Quotas reserve attempted runs, including failed provider calls; they do not refund failures automatically.
 - Ingestion is synchronous and bounded. It embeds before writing and commits relational data atomically. Failed commits attempt object cleanup. Long documents must be split; durable background jobs are a future production extension.
 - Deletion removes indexed data first. If storage cleanup fails, the UI reports it; an operator can remove that owner-scoped orphan object in Supabase.
-- A free quota exhaustion returns 429 and is not retried. Transient network and 5xx provider errors get at most three attempts with bounded backoff; `GEMINI_REQUEST_TIMEOUT` defaults to 30 seconds per attempt. The backend surfaces setup-needed errors, rather than returning a pretend AI answer.
+- A free quota exhaustion returns 429 and is not retried. Transient network and 5xx provider errors get at most three attempts with bounded backoff; `GEMINI_REQUEST_TIMEOUT` defaults to 30 seconds per attempt. If generation is unavailable after bounded retries, the app returns clearly labelled matching source excerpts with status `retrieval_only`; it does not claim to have generated a summary. If embeddings are unavailable, private PostgreSQL keyword search provides a retrieval fallback. Sensitive-output checks still run over excerpts. With no keyword matches, status `search_degraded` explains the limitation. Database outages and daily application quota exhaustion still return explicit errors.
 - Rate limiting of authentication attempts is per-process; Supabase also applies provider-side Auth limits. A production deployment should add a durable edge rate limiter.
 
 ## Tests and evaluations

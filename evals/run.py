@@ -7,6 +7,7 @@ import time
 from pathlib import Path
 from unittest.mock import patch
 from app.guardrails import classify_input, check_output
+from fastapi import HTTPException
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -32,6 +33,9 @@ def offline(cases):
     with patch('app.graph.embed',return_value=[1]),patch('app.graph.rpc',return_value=[]),patch('app.graph.answer') as generate:
         r=chat(Principal('offline','offline'),'Who is CEO?')
         results.append({'id':'graph-abstain','pass':r['status']=='no_evidence' and not generate.called,'metric':'workflow'})
+    with patch('app.graph.embed',side_effect=HTTPException(503,'controlled outage')),patch('app.graph.rpc',return_value=[hit]),patch('app.graph.answer',side_effect=HTTPException(502,'controlled outage')):
+        r=chat(Principal('offline','offline'),'how handbook works')
+        results.append({'id':'graph-provider-outage','pass':r['status']=='retrieval_only' and r['retrieval_mode']=='keyword' and citation_valid(r['answer'],r['sources']),'metric':'workflow'})
     return results
 
 def live(cases, judge=False):

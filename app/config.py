@@ -3,6 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file='.env', extra='ignore')
+    app_version: str = '1.1.0'
     supabase_url: str = ''
     supabase_publishable_key: str = ''
     gemini_api_key: str = ''

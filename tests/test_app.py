@@ -145,3 +145,37 @@ def test_permanent_or_quota_ai_errors_are_not_retried(monkeypatch,status):
     with patch('app.models.httpx.post',return_value=httpx.Response(status,json={})) as post,patch('app.models.time.sleep'):
         with pytest.raises(HTTPException): invoke('test-model','generateContent',{})
     assert post.call_count==1
+
+@pytest.mark.parametrize('status',[429,502,503])
+def test_generation_failure_returns_labelled_cited_excerpts(status):
+    from app.graph import chat
+    hit={'id':'chunk','document_id':'doc','title':'Handbook','page':1,'content':'Leave is 20 days.','score':.9}
+    with patch('app.graph.embed',return_value=[1]),patch('app.graph.rpc',return_value=[hit]),patch('app.graph.answer',side_effect=HTTPException(status,'provider failed')):
+        r=chat(Principal('a','token'),'how handbook works')
+    assert r['status']=='retrieval_only' and 'matching excerpts' in r['answer']
+    assert '[1]' in r['answer'] and 'Leave is 20 days.' in r['answer']
+    assert r['sources'][0]['document_id']=='doc'
+
+@pytest.mark.parametrize('status',[429,502,503])
+def test_embedding_failure_uses_private_keyword_search(status):
+    from app.graph import chat
+    hit={'id':'chunk','document_id':'doc','title':'Handbook','page':1,'content':'Leave is 20 days.','score':.9}
+    with patch('app.graph.embed',side_effect=HTTPException(status,'provider failed')),patch('app.graph.rpc',return_value=[hit]) as search,patch('app.graph.answer',side_effect=HTTPException(502,'provider failed')):
+        r=chat(Principal('a','token'),'how handbook works')
+    assert search.call_args.args[1]=='keyword_chunks'
+    assert r['retrieval_mode']=='keyword' and r['status']=='retrieval_only'
+
+def test_keyword_no_matches_does_not_claim_semantic_search_succeeded():
+    from app.graph import chat
+    with patch('app.graph.embed',side_effect=HTTPException(503,'down')),patch('app.graph.rpc',return_value=[]),patch('app.graph.answer') as generate:
+        r=chat(Principal('a','token'),'absent topic')
+    assert r['status']=='search_degraded' and not generate.called
+    assert 'keyword search found no matching passages' in r['answer']
+
+def test_excerpt_fallback_still_blocks_sensitive_output():
+    from app.graph import chat
+    hit={'id':'chunk','document_id':'doc','title':'Handbook','page':1,'content':'password=FictionalSecret123456','score':.9}
+    with patch('app.graph.embed',return_value=[1]),patch('app.graph.rpc',return_value=[hit]),patch('app.graph.answer',side_effect=HTTPException(503,'down')):
+        r=chat(Principal('a','token'),'handbook security')
+    assert r['status']=='guardrail_blocked' and r['sources']==[]
+    assert 'FictionalSecret123456' not in r['answer']

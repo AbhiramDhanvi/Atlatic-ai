@@ -1,5 +1,6 @@
 """Adapted from entbappy/ATLAS-Enterprise-AI's LangGraph workflow."""
 import re
+from fastapi import HTTPException
 from typing import TypedDict, Any
 from langgraph.graph import StateGraph, START, END
 from app.backend import rpc
@@ -15,6 +16,7 @@ class State(TypedDict, total=False):
     sources: list
     answer: str
     status: str
+    retrieval_mode: str
 
 def guard(s):
     return {'question': check_input(s['question'])}
@@ -22,23 +24,45 @@ def guard(s):
 def retrieve(s):
     prior = [x['content'] for x in s.get('history', []) if x['role'] == 'user']
     query = prior[-1] + '\nFollow-up: ' + s['question'] if prior else s['question']
-    hits = rpc(s['principal'], 'match_chunks', {
-        'query_embedding': embed(query), 'match_threshold': settings().min_relevance,
-        'match_count': 5})
+    mode = 'vector'
+    try:
+        vector = embed(query)
+    except HTTPException as exc:
+        if exc.status_code not in (429, 502, 503):
+            raise
+        mode = 'keyword'
+        hits = rpc(s['principal'], 'keyword_chunks', {'search_query': query, 'match_count': 5})
+    else:
+        hits = rpc(s['principal'], 'match_chunks', {
+            'query_embedding': vector, 'match_threshold': settings().min_relevance,
+            'match_count': 5})
     sources = [{'index': i+1, 'chunk_id': h['id'], 'document_id': h['document_id'],
                 'title': h['title'], 'page': h['page'], 'excerpt': h['content'][:400]}
                for i, h in enumerate(hits)]
-    return {'passages': hits, 'sources': sources}
+    return {'passages': hits, 'sources': sources, 'retrieval_mode': mode}
 
 def generate(s):
     evidence = '\n\n'.join(f'[{i+1}] {h["title"]}, page {h["page"]}: {h["content"]}'
                             for i, h in enumerate(s['passages']))
-    return {'answer': answer(s['question'], evidence, s.get('history', [])), 'status': 'answered'}
+    try:
+        text = answer(s['question'], evidence, s.get('history', []))
+    except HTTPException as exc:
+        if exc.status_code not in (429, 502, 503):
+            raise
+        # This is an explicitly labelled extractive response, never a fabricated summary.
+        excerpts = '\n\n'.join(f'[{i+1}] {h["title"]}, page {h["page"]}:\n{h["content"]}'
+                                for i, h in enumerate(s['passages'][:3]))
+        return {'answer': 'AI generation is temporarily unavailable. Here are matching excerpts from your documents:\n\n' + excerpts,
+                'status': 'retrieval_only'}
+    return {'answer': text, 'status': 'answered'}
 
 def validate(s):
     text = check_output(s['answer'])
     if text != s['answer']:
         return {'answer': text, 'status': 'guardrail_blocked', 'sources': []}
+    if s.get('status') == 'retrieval_only':
+        # Source numbers are constructed above. Numbers inside quoted text are document data.
+        return {'answer': text}
     cited = {int(n) for n in re.findall(r'\[(\d+)\]', text)}
     if not cited or not cited.issubset(set(range(1, len(s['sources'])+1))):
         return {'answer': 'I could not produce an answer with valid supporting citations. Please rephrase your question.',
@@ -46,6 +70,9 @@ def validate(s):
     return {'answer': text}
 
 def no_evidence(s):
+    if s.get('retrieval_mode') == 'keyword':
+        return {'answer': 'Semantic search is temporarily unavailable, and keyword search found no matching passages. Try a more specific phrase from your document.',
+                'sources': [], 'status': 'search_degraded'}
     return {'answer': 'I could not find supporting evidence in your documents.',
             'sources': [], 'status': 'no_evidence'}
 

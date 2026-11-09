@@ -10,6 +10,7 @@ insert into public.conversations(id,owner_id,title) values
 insert into public.chat_messages(conversation_id,owner_id,role,content) values
 ('44444444-4444-4444-8444-444444444444','11111111-1111-4111-8111-111111111111','user','Private message');
 insert into storage.objects(bucket_id,name) values('documents','11111111-1111-4111-8111-111111111111/a.txt');
+insert into public.document_chunks(document_id,owner_id,page,content,embedding) values('33333333-3333-4333-8333-333333333333','11111111-1111-4111-8111-111111111111',1,'secretalpha private A evidence',array_fill(.1::real,array[768])::extensions.vector(768));
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"22222222-2222-4222-8222-222222222222","role":"authenticated"}',true);
 do $$ begin
@@ -49,5 +50,10 @@ do $$ declare n int; begin
  end loop;
  if public.reserve_usage('chat') then raise exception 'FAIL quota enforcement'; end if;
 end $$;
-select json_build_object('passed',true,'checks',11,'fixture_data','rolled back') as rls_verification;
+do $$ begin
+ if (select count(*) from public.keyword_chunks('annual leave',5))<>1 then raise exception 'FAIL own keyword retrieval'; end if;
+ if (select count(*) from public.keyword_chunks('secretalpha',5))<>0 then raise exception 'FAIL keyword cross-user isolation'; end if;
+ if has_function_privilege('anon','public.keyword_chunks(text,int)','EXECUTE') then raise exception 'FAIL anonymous keyword access'; end if;
+end $$;
+select json_build_object('passed',true,'checks',14,'fixture_data','rolled back') as rls_verification;
 rollback;

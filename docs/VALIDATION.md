@@ -1,9 +1,9 @@
 # Verification record
 
-- Local application tests: 32 passed; 8 browser-auth callback parser checks passed.
-- Offline guardrail/workflow evaluation: 42 checks passed; controlled adapters, not live inference scores.
+- Local application tests: 40 passed; 8 browser-auth callback parser checks passed.
+- Offline guardrail/workflow evaluation: 43 checks passed; controlled adapters, not live inference scores.
 - Live Supabase schema: nine application tables with RLS, eleven table/storage policies, private document bucket.
-- Live transactional database regression: eleven assertions passed, covering cross-user documents/messages/conversations/storage isolation, forged ownership rejection, approval privilege checks, anonymous function privileges, own-vector retrieval and daily quota enforcement. All fixtures rolled back.
+- Live transactional database regression: fourteen assertions passed, covering cross-user documents/messages/conversations/storage isolation, forged ownership rejection, approval privilege checks, anonymous function privileges, own-vector retrieval and daily quota enforcement, plus own-document keyword retrieval, cross-user keyword isolation and anonymous keyword access denial. All fixtures rolled back.
 - JavaScript syntax and Python compilation passed.
 - Render Free initial deployment reached live. Public liveness and configuration endpoints returned 200; anonymous document access returned 401. GitHub CI passed.
 - Gemini embeddings returned HTTP 200 with 768 dimensions. The initial legacy chat model returned 404; Gemini 3.5 Flash returned HTTP 200 with answer candidates and is now the configured model.
@@ -14,3 +14,5 @@ The Supabase advisor identified inherited anonymous EXECUTE privileges during in
 Authentication redirect fix: production Site URL updated from localhost to the deployed HTTPS origin. Signup now sends a fixed confirmation callback, the browser handles and removes confirmation fragments, signup returns to sign-in mode, and known auth errors use safe actionable messages.
 
 Authenticated browser verification: owner sign-in succeeded; the indexed fictional handbook returned cited answers for annual leave (20 days), carry-forward follow-up (5 days), and core hours (10 AM–3 PM). One intervening provider failure was observed; bounded retries now cover transient network/5xx failures, with no retry on quota or permanent errors. This is a smoke test, not a full live quality benchmark.
+
+Provider failure regression: 429/502/503 generation failures produce labelled cited excerpts; embedding failures use the private keyword RPC; no-match degraded search does not claim semantic success; sensitive output remains blocked. The exact reported question, "how handbook works", also returned a cited generated answer in authenticated live browser verification.
