@@ -1,0 +1,9 @@
+Atlatic AI
+Based on ATLAS Enterprise AI by entbappy (DSwithBappy).
+https://github.com/entbappy/ATLAS-Enterprise-AI
+Upstream source commit: 511bd7f4483ed7e869cb453aadc46abcdfd9a2a5
+
+The original Apache License 2.0 is retained in LICENSE.
+Modified for Gemini, Supabase Auth/Storage/PostgreSQL/pgvector, private per-user access,
+Render Free deployment, evaluation tooling and a redesigned dashboard.
+Original tutorial: https://www.youtube.com/watch?v=q08xK7Jd1nM

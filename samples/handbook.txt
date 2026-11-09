@@ -1,0 +1,19 @@
+NOVACORE — FICTIONAL EMPLOYEE HANDBOOK
+This is fictional demonstration data, not employment or legal advice.
+
+ANNUAL LEAVE
+Employees receive 20 days of paid annual leave each calendar year. Up to 5 unused leave days may be carried forward to the next year. Leave requests must be submitted to the manager at least 7 days in advance.
+
+REMOTE WORK
+Employees may work remotely up to 3 days each week with manager approval. Core collaboration hours are 10:00 AM to 3:00 PM. Remote work outside the employee's registered country requires written approval.
+
+EXPENSES
+Meals during approved business travel may be reimbursed up to 1500 INR per day. Receipts are required for every reimbursement. Claims must be submitted within 30 days of the expense.
+
+SECURITY
+Use multi-factor authentication for company accounts. Report suspected security incidents to the security team within 1 hour. Never share passwords or upload confidential data into unapproved tools.
+
+LEARNING
+Each employee has a yearly learning allowance of 10000 INR. Courses need manager approval before purchase. New employees complete onboarding within 14 days of joining.
+
+The handbook does not identify a CEO, provide salary information, or specify a maternity leave policy. Do not infer these details.
