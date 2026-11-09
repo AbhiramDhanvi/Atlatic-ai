@@ -16,6 +16,7 @@ jobs:
           cache: pip
       - run: pip install -r requirements-dev.txt
       - run: python -m pytest tests -q
+      - run: node tests/auth-return.cjs
       - run: python -m evals.run --offline --output eval-reports/offline.json
       - uses: actions/upload-artifact@v4
         with:

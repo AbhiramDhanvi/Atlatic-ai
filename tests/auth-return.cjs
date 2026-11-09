@@ -1,0 +1,13 @@
+const assert=require('node:assert/strict');
+const {parseAuthReturn}=require('../app/static/js/auth-return.js');
+assert.deepEqual(parseAuthReturn(''),{kind:'none'});
+assert.deepEqual(parseAuthReturn('#section'),{kind:'none'});
+const valid=parseAuthReturn('#access_token=fictional-test-access&refresh_token=fictional-test-refresh&token_type=bearer&type=signup');
+assert.equal(valid.kind,'session');
+assert.equal(valid.session.access_token,'fictional-test-access');
+assert.equal(parseAuthReturn('#error=access_denied&error_description=untrusted-secret-text').kind,'error');
+assert(!parseAuthReturn('#error=access_denied&error_description=untrusted-secret-text').message.includes('untrusted-secret-text'));
+assert.equal(parseAuthReturn('#access_token=fictional-test-access').kind,'error');
+assert.equal(parseAuthReturn('#access_token=fictional-test-access&refresh_token=test&token_type=other').kind,'error');
+assert.equal(parseAuthReturn('#access_token=test&refresh_token=test&type=recovery').kind,'error');
+console.log('8 auth-return checks passed');

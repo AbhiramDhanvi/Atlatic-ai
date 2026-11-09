@@ -2,6 +2,7 @@ import time
 import uuid
 from pathlib import Path
 from collections import defaultdict, deque
+from urllib.parse import urlencode
 from fastapi import FastAPI, Depends, HTTPException, Request, UploadFile, File
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -23,7 +24,7 @@ async def security_headers(request: Request, call_next):
     response.headers['Referrer-Policy'] = 'no-referrer'
     response.headers['X-Frame-Options'] = 'DENY'
     response.headers['Cache-Control'] = 'no-store'
-    if request.url.path == '/':
+    if request.url.path in ('/', '/auth/confirmed'):
         response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
     return response
 
@@ -33,6 +34,7 @@ async def unexpected_error(request, exc):
     return JSONResponse({'detail':'An unexpected error occurred. Retry or contact the administrator.'}, status_code=500)
 
 @app.get('/')
+@app.get('/auth/confirmed', include_in_schema=False)
 def home():
     return FileResponse(BASE/'templates/index.html')
 
@@ -81,7 +83,9 @@ def login(body:Credentials,request:Request):
 @app.post('/api/auth/signup')
 def signup(body:Credentials,request:Request):
     auth_limit(request)
-    return upstream('POST','/auth/v1/signup',json=body.model_dump())
+    # Use a server-configured destination, never the untrusted request Host header.
+    redirect = settings().app_origin.rstrip('/') + '/auth/confirmed'
+    return upstream('POST','/auth/v1/signup?' + urlencode({'redirect_to': redirect}),json=body.model_dump())
 
 @app.post('/api/auth/refresh')
 def refresh(body:Refresh):

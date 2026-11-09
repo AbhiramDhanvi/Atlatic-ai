@@ -25,6 +25,26 @@ def request(method, path, token='', **kwargs):
     except httpx.HTTPError as exc:
         raise HTTPException(503, 'Database service is temporarily unavailable.') from exc
     if r.is_error:
+        if path.startswith('/auth/v1/'):
+            try:
+                code = r.json().get('error_code') or r.json().get('code')
+            except (ValueError, AttributeError):
+                code = None
+            errors = {
+                'invalid_credentials': (401, 'Email or password is incorrect.'),
+                'email_not_confirmed': (403, 'Confirm your email first, then sign in.'),
+                'user_already_exists': (409, 'An account already exists. Choose Sign in.'),
+                'weak_password': (422, 'Choose a stronger password of at least 8 characters.'),
+                'over_email_send_rate_limit': (429, 'Too many confirmation emails requested. Wait before trying again.'),
+                'over_request_rate_limit': (429, 'Too many authentication attempts. Please wait.'),
+            }
+            if code in errors:
+                status, message = errors[code]
+                raise HTTPException(status, message)
+            if r.status_code == 429:
+                raise HTTPException(429, 'Too many authentication attempts. Please wait.')
+            if r.status_code == 400:
+                raise HTTPException(400, 'Unable to sign in or register. Check your details and email confirmation.')
         if r.status_code in (401, 403):
             raise HTTPException(r.status_code, 'Session expired or access denied.')
         raise HTTPException(502, 'Database operation failed. Please retry.')

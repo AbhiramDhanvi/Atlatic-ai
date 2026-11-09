@@ -94,3 +94,35 @@ def test_workflow_has_no_generation_without_context():
     with patch('app.graph.embed',return_value=[1]),patch('app.graph.rpc',return_value=[]),patch('app.graph.answer') as model:
         r=chat(Principal('a','token'),'Who is the CEO?')
     assert r['status']=='no_evidence' and not model.called
+
+def test_confirmation_callback_serves_ui_with_same_security_headers():
+    r=client.get('/auth/confirmed')
+    assert r.status_code==200 and 'auth-return.js' in r.text
+    assert "script-src 'self'" in r.headers['Content-Security-Policy']
+
+def test_signup_uses_server_configured_confirmation_url(monkeypatch):
+    from urllib.parse import urlsplit, parse_qs
+    from app.config import settings
+    monkeypatch.setattr(settings(),'app_origin','https://atlatic-ai.onrender.com/')
+    with patch('app.main.upstream',return_value={'user':{'id':'test'}}) as call:
+        r=client.post('/api/auth/signup',headers={'Host':'attacker.invalid'},json={'email':'test@example.com','password':'fictional-test-password'})
+    assert r.status_code==200
+    path=call.call_args.args[1]
+    assert parse_qs(urlsplit(path).query)['redirect_to']==['https://atlatic-ai.onrender.com/auth/confirmed']
+
+@pytest.mark.parametrize('code,status,message',[
+    ('email_not_confirmed',403,'Confirm your email'),
+    ('invalid_credentials',401,'incorrect'),
+    ('over_email_send_rate_limit',429,'Wait'),
+])
+def test_auth_errors_are_actionable_without_exposing_upstream_details(monkeypatch,code,status,message):
+    import httpx
+    from app.backend import request
+    from app.config import settings
+    monkeypatch.setattr(settings(),'supabase_url','https://example.supabase.co')
+    monkeypatch.setattr(settings(),'supabase_publishable_key','test-publishable')
+    response=httpx.Response(400,json={'code':code,'msg':'do-not-expose-upstream-secret'})
+    with patch('app.backend.httpx.request',return_value=response):
+        with pytest.raises(HTTPException) as e:request('POST','/auth/v1/token?grant_type=password')
+    assert e.value.status_code==status and message in e.value.detail
+    assert 'do-not-expose' not in e.value.detail

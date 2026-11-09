@@ -49,7 +49,7 @@ cp .env.example .env
 2. Copy the project's URL and publishable key into `.env`. Never use a service-role/secret key in this app.
 3. Add `GEMINI_API_KEY` privately. Select a chat and embedding model with free quota in your account; verify current model availability. The defaults are configuration examples, not a guarantee that a particular model stays available forever.
 4. Keep `EMBED_DIM=768`, matching the SQL column. Switching embedding models requires a new index or clearing/re-ingesting your own documents; do not mix embedding spaces.
-5. Under Supabase Auth, configure the deployed Site URL and allowed redirect URLs. Keep email confirmation enabled. The app tells new users to confirm their email and then sign in.
+5. Under Supabase Auth → URL Configuration, set Site URL to your deployed HTTPS origin (for example, `https://atlatic-ai.onrender.com`) and add the exact `https://atlatic-ai.onrender.com/auth/confirmed` redirect URL. Set `APP_ORIGIN` on Render to that same origin. The backend supplies this fixed callback URL during signup; never leave the production Site URL at localhost. Keep email confirmation enabled. The app tells new users to confirm their email and then sign in.
 6. For reliable email delivery beyond Supabase's testing limits, configure your own SMTP provider within that provider's free allowance.
 
 ```bash
@@ -111,6 +111,7 @@ Render Free can sleep and has no always-on guarantee. Supabase can pause inactiv
 
 ```bash
 python -m pytest tests -q
+node tests/auth-return.cjs
 python -m evals.run --offline --output eval-reports/offline.json
 ```
 
